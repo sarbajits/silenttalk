@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SilentTalk - Real-time Chat</title>
+    <!-- Animation Libraries -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- AOS Library for scroll animations -->
+    <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+    <!-- Tippy.js for tooltips -->
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/animations/scale.css"/>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Auth Container -->
+        <div id="auth-container" class="auth-container">
+            <div class="auth-box animate__animated animate__fadeIn">
+                <h2 data-aos="fade-down">Welcome to SilentTalk</h2>
+                <button id="google-login" class="google-btn" data-aos="fade-up">
+                    <img src="https://www.google.com/favicon.ico" alt="Google">
+                    Continue with Google
+                </button>
+            </div>
+        </div>
+
+        <!-- Username Setup Container -->
+        <div id="username-setup" class="username-setup hidden">
+            <div class="auth-box animate__animated animate__fadeIn">
+                <h2 data-aos="fade-down">Choose Your Username</h2>
+                <form id="username-form" data-aos="fade-up">
+                    <input type="text" id="username-input" placeholder="Enter username" required>
+                    <button type="submit">Set Username</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Chat Container -->
+        <div id="chat-container" class="chat-container hidden">
+            <!-- Chat List View -->
+            <div id="chat-list-view" class="chat-view active">
+                <!-- User Info -->
+                <div class="user-info-bar" data-aos="fade-down">
+                    <div class="user-info">
+                        <div class="avatar-container" data-tippy-content="Your Profile">
+                            <img id="user-avatar" alt="Profile">
+                            <span id="status-indicator" class="status-indicator"></span>
+                        </div>
+                        <span id="username-display"></span>
+                    </div>
+                    <div class="user-actions">
+                        <button id="theme-toggle" class="icon-btn" data-tippy-content="Toggle Theme">
+                            <i class="fas fa-moon"></i>
+                        </button>
+                        <button id="logout-btn" class="icon-btn" data-tippy-content="Logout">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search Bar -->
+                <div class="search-container" data-aos="fade-down">
+                    <div class="search-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="user-search" placeholder="Search users...">
+                    </div>
+                </div>
+
+                <!-- Chat List -->
+                <div id="chat-list" class="chat-list" data-aos="fade-up"></div>
+
+                <!-- New Chat Button -->
+                <button id="new-chat-btn" class="new-chat-btn animate__animated animate__bounceIn" data-tippy-content="New Chat">
+                    <i class="fas fa-pen"></i>
+                </button>
+            </div>
+
+            <!-- Chat View -->
+            <div id="chat-view" class="chat-view">
+                <!-- Chat Header -->
+                <div class="chat-header" data-aos="fade-down">
+                    <button id="back-to-list" class="icon-btn" data-tippy-content="Back to Chats">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="chat-header-info">
+                        <div class="avatar-container">
+                            <img id="chat-avatar" alt="Chat">
+                            <span class="status-indicator"></span>
+                        </div>
+                        <div class="chat-details">
+                            <h3 id="current-chat-name"></h3>
+                            <span id="chat-status" class="status-text"></span>
+                        </div>
+                    </div>
+                    <button id="chat-info-btn" class="icon-btn" data-tippy-content="Chat Info">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                </div>
+
+                <!-- Messages Container -->
+                <div id="messages-container" class="messages-container"></div>
+
+                <!-- Message Input -->
+                <div class="message-input-container">
+                    <form id="message-form">
+                        <input type="text" id="message-input" placeholder="Write a message...">
+                        <button type="submit" class="icon-btn" data-tippy-content="Send Message">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Info Modal -->
+        <div id="chat-info-modal" class="modal hidden">
+            <div class="modal-content animate__animated animate__zoomIn">
+                <div class="modal-header">
+                    <h3>Chat Info</h3>
+                    <button id="close-modal" class="icon-btn" data-tippy-content="Close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="user-profile">
+                        <div class="avatar-container large">
+                            <img id="modal-avatar" alt="Profile">
+                        </div>
+                        <h4 id="modal-username"></h4>
+                        <span id="modal-status"></span>
+                    </div>
+                    <div class="chat-actions">
+                        <button id="clear-chat" class="danger-btn" data-tippy-content="Clear all messages">
+                            <i class="fas fa-trash"></i>
+                            Clear Chat
+                        </button>
+                        <button id="delete-chat" class="danger-btn" data-tippy-content="Delete this chat">
+                            <i class="fas fa-trash-alt"></i>
+                            Delete Chat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Third-party Libraries -->
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+    <!-- Custom Scripts -->
+    <script type="module" src="app.js"></script>
+
+    <script>
+        // Initialize AOS
+        AOS.init({
+            duration: 800,
+            once: true
+        });
+
+        // Initialize Tippy.js
+        tippy('[data-tippy-content]', {
+            placement: 'bottom',
+            animation: 'scale',
+            theme: 'custom'
+        });
+    </script>
+</body>
+</html> 
