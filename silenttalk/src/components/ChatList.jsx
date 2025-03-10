@@ -250,50 +250,54 @@ export default function ChatList({ user, chats, currentChat, onChatSelect, loadi
             )}
           </div>
         </div>
-
-        {/* Search Results */}
-        {searchTerm && (
-          <div className="absolute z-10 mt-2 w-[calc(100%-2rem)] max-h-60 overflow-y-auto rounded-lg border border-border-light bg-primary-light shadow-lg dark:border-border-dark dark:bg-primary-dark">
-            {searchResults.length > 0 ? (
-              searchResults.map(user => (
-                <div
-                  key={user.uid}
-                  onClick={() => handleUserSelect(user)}
-                  className="flex cursor-pointer items-center gap-3 border-b border-border-light p-4 transition-colors hover:bg-gray-50 dark:border-border-dark dark:hover:bg-gray-800"
-                >
-                  <div className="relative h-10 w-10">
-                    <img
-                      src={user.photoURL || getAvatarUrl(user.username)}
-                      alt={user.username}
-                      className="h-full w-full rounded-full object-cover"
-                      onError={(e) => {
-                        e.target.src = getAvatarUrl(user.username);
-                      }}
-                    />
-                    <span className={classNames(
-                      'absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white dark:border-gray-800',
-                      user.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
-                    )}></span>
-                  </div>
-                  <div>
-                    <div className="font-medium">{user.username}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      {user.status === 'online' ? 'Online' : 'Offline'}
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                No users found
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Chat List */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Search Results */}
+      {searchTerm && searchResults.length > 0 && (
+        <div className="border-b border-border-light dark:border-border-dark">
+          <div className="p-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+            Search Results
+          </div>
+          {searchResults.map((user) => (
+            <div
+              key={user.uid}
+              onClick={() => handleUserSelect(user)}
+              className="flex cursor-pointer items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
+            >
+              <div className="relative h-10 w-10 flex-shrink-0">
+                <img
+                  src={user.photoURL || getAvatarUrl(user.username)}
+                  alt={user.username}
+                  className="h-full w-full rounded-full object-cover"
+                  onError={(e) => {
+                    e.target.src = getAvatarUrl(user.username);
+                  }}
+                />
+                <span className={classNames(
+                  'absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white dark:border-gray-800',
+                  user.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
+                )}></span>
+              </div>
+              <div className="ml-3">
+                <div className="font-medium">{user.username}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {user.status === 'online' ? 'Online' : 'Offline'}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* No Results */}
+      {searchTerm && searchResults.length === 0 && !isSearching && (
+        <div className="border-b border-border-light p-4 text-center dark:border-border-dark">
+          <p className="text-sm text-gray-500 dark:text-gray-400">No users found</p>
+        </div>
+      )}
+
+      {/* Chats List */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent" style={{ maxHeight: 'calc(100vh - 140px)' }}>
         {renderChatList()}
       </div>
     </div>

@@ -32,7 +32,7 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
 
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   };
 
@@ -45,6 +45,8 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
 
   // Load initial messages and set up real-time listener
   useEffect(() => {
+    let isActive = true; // Flag to handle component unmount
+    
     if (!chatId) {
       setMessages([]);
       setLoading(false);
@@ -59,8 +61,11 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
 
     // Load existing messages
     get(messagesRef).then((snapshot) => {
+      if (!isActive) return; // Don't update state if component is unmounted
+      
       const messagesData = snapshot.val();
       if (messagesData) {
+        // Convert messages object to array and sort by timestamp
         const messagesList = Object.entries(messagesData)
           .map(([id, data]) => ({ id, ...data }))
           .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
@@ -75,16 +80,23 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
       setLoading(false);
       setTimeout(scrollToBottom, 100); // Delay to ensure DOM is updated
     }).catch((error) => {
+      if (!isActive) return; // Don't update state if component is unmounted
+      
       console.error('Error loading messages:', error);
       setLoading(false);
       setMessages([]); // Reset messages on error to avoid stale state
     });
 
     // Listen for new messages
-    const unsubscribe = onChildAdded(messagesRef, (snapshot) => {
+    const unsubscribe = onChildAdded(messagesRef, async (snapshot) => {
+      if (!isActive) return; // Don't update state if component is unmounted
+      
       const messageData = snapshot.val();
       if (messageData) {
         console.log('New message received:', messageData);
+        
+        // Always set loading to false when receiving new messages
+        setLoading(false);
         
         // Use functional update to avoid closure issues
         setMessages(prev => {
@@ -126,6 +138,7 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
 
     // Cleanup function
     return () => {
+      isActive = false; // Mark component as unmounted
       console.log('Cleaning up message listeners for chat:', chatId);
       unsubscribe();
     };
@@ -156,7 +169,12 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
     };
     
     // Add to local messages state
-    setMessages(prev => [...prev, tempMessage]);
+    setMessages(prev => [...prev, tempMessage].sort((a, b) => 
+      (a.timestamp || 0) - (b.timestamp || 0)
+    ));
+    
+    // Ensure loading is false
+    setLoading(false);
     
     // Scroll to bottom immediately
     setTimeout(scrollToBottom, 10);
@@ -263,8 +281,8 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
       {renderHeader()}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4" id="messages-container">
-        {loading ? (
+      <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent" id="messages-container" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+        {loading && messages.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <div className="animate-spin h-8 w-8 border-4 border-primary rounded-full border-t-transparent"></div>
           </div>
@@ -281,13 +299,13 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
                 className={`flex ${msg.userId === user.uid ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[75%] rounded-lg p-3 ${
+                  className={`max-w-[75%] md:max-w-[70%] lg:max-w-[60%] rounded-lg p-3 ${
                     msg.userId === user.uid
                       ? `bg-primary text-white ${msg.pending ? 'opacity-70' : ''}`
                       : 'bg-secondary-light dark:bg-secondary-dark text-text-light dark:text-text-dark'
                   }`}
                 >
-                  <div className="relative">
+                  <div className="relative break-words">
                     {msg.text}
                     {msg.pending && (
                       <span className="absolute -right-6 top-1/2 -translate-y-1/2">
@@ -302,6 +320,11 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
               </div>
             ))}
             <div ref={messagesEndRef} />
+            {loading && messages.length > 0 && (
+              <div className="flex justify-center py-2">
+                <div className="animate-spin h-5 w-5 border-2 border-primary rounded-full border-t-transparent"></div>
+              </div>
+            )}
           </div>
         )}
       </div>

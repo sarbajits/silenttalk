@@ -1,4 +1,5 @@
 import forms from '@tailwindcss/forms'
+import scrollbar from 'tailwind-scrollbar'
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -67,5 +68,8 @@ export default {
       },
     },
   },
-  plugins: [forms],
+  plugins: [forms, scrollbar],
+  variants: {
+    scrollbar: ['rounded', 'dark']
+  }
 } 

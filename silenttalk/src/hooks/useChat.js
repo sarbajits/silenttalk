@@ -645,6 +645,9 @@ export function useChat() {
     if (!user) throw new Error('You must be logged in to send a message');
     if (!text.trim()) throw new Error('Message cannot be empty');
 
+    // Create message reference outside try block so it's available in catch
+    const messageRef = push(ref(database, `chats/${chatId}/messages`));
+
     try {
       console.log('Sending message to chat:', chatId);
       const chatRef = ref(database, `chats/${chatId}`);
@@ -667,17 +670,48 @@ export function useChat() {
       // Create a timestamp that can be used locally
       const clientTimestamp = Date.now();
       
-      // Add message to chat
-      const messageRef = push(ref(database, `chats/${chatId}/messages`));
+      // Create the message object
       const message = {
         text: text.trim(),
         timestamp: clientTimestamp,
-        userId: user.uid
+        userId: user.uid,
+        pending: true // Add pending flag for optimistic updates
       };
+      
+      // Update local state immediately for better UX
+      setChats(prevChats => {
+        const existingChat = prevChats[chatId];
+        if (!existingChat) return prevChats;
+        
+        // Create a new messages object with the new message
+        const updatedMessages = {
+          ...existingChat.messages,
+          [messageRef.key]: message
+        };
+        
+        // Convert messages object to array and sort by timestamp
+        const sortedMessages = Object.entries(updatedMessages)
+          .map(([id, msg]) => ({ id, ...msg }))
+          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        
+        return {
+          ...prevChats,
+          [chatId]: {
+            ...existingChat,
+            lastMessage: text.trim(),
+            lastMessageTime: clientTimestamp,
+            messages: updatedMessages,
+            sortedMessages // Add sorted messages array for instant updates
+          }
+        };
+      });
       
       // Prepare all updates to be done atomically
       const updates = {
-        [`chats/${chatId}/messages/${messageRef.key}`]: message,
+        [`chats/${chatId}/messages/${messageRef.key}`]: {
+          ...message,
+          pending: null // Remove pending flag in Firebase
+        },
         [`chats/${chatId}/lastMessage`]: text.trim(),
         [`chats/${chatId}/lastMessageTime`]: clientTimestamp,
         [`chats/${chatId}/unreadBy/${otherUserId}`]: increment(1)
@@ -686,17 +720,30 @@ export function useChat() {
       // Apply all updates atomically
       await update(ref(database), updates);
       
-      // Update local state immediately for better UX
+      // Update local state to remove pending flag
       setChats(prevChats => {
         const existingChat = prevChats[chatId];
         if (!existingChat) return prevChats;
+        
+        const updatedMessages = {
+          ...existingChat.messages,
+          [messageRef.key]: {
+            ...existingChat.messages[messageRef.key],
+            pending: null
+          }
+        };
+        
+        // Convert messages object to array and sort by timestamp
+        const sortedMessages = Object.entries(updatedMessages)
+          .map(([id, msg]) => ({ id, ...msg }))
+          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
         
         return {
           ...prevChats,
           [chatId]: {
             ...existingChat,
-            lastMessage: text.trim(),
-            lastMessageTime: clientTimestamp
+            messages: updatedMessages,
+            sortedMessages // Update sorted messages array
           }
         };
       });
@@ -705,6 +752,27 @@ export function useChat() {
       return messageRef.key;
     } catch (error) {
       console.error('Error sending message:', error);
+      // Revert optimistic update on error
+      setChats(prevChats => {
+        const existingChat = prevChats[chatId];
+        if (!existingChat) return prevChats;
+        
+        const { [messageRef.key]: _removed, ...remainingMessages } = existingChat.messages;
+        
+        // Convert remaining messages to array and sort by timestamp
+        const sortedMessages = Object.entries(remainingMessages)
+          .map(([id, msg]) => ({ id, ...msg }))
+          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        
+        return {
+          ...prevChats,
+          [chatId]: {
+            ...existingChat,
+            messages: remainingMessages,
+            sortedMessages // Update sorted messages array
+          }
+        };
+      });
       throw error; // Let the component handle the error
     }
   };

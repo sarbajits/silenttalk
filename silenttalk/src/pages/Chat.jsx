@@ -81,9 +81,20 @@ export default function Chat() {
           console.log('Activating mobile view for selected chat (small screen)');
           setIsMobileViewActive(true);
         }
-      }, 50);
+      }, 100); // Increased delay to ensure data is loaded
     } catch (error) {
       console.error('Error selecting chat:', error);
+    }
+  };
+
+  const handleSendMessage = async (chatId, text) => {
+    try {
+      // Prevent unnecessary re-renders by not awaiting the result
+      const result = await sendMessage(chatId, text);
+      return result;
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
     }
   };
 
@@ -97,7 +108,7 @@ export default function Chat() {
   };
 
   return (
-    <div className="h-screen bg-primary-light dark:bg-primary-dark">
+    <div className="h-screen bg-primary-light dark:bg-primary-dark overflow-hidden">
       <div className="mx-auto h-full max-w-7xl">
         <div className="grid h-full md:grid-cols-[350px_1fr]">
           {/* Chat List - Always visible on desktop, conditionally on mobile */}
@@ -120,7 +131,7 @@ export default function Chat() {
           {/* Chat View - Always visible on desktop when chat selected, conditionally on mobile */}
           <div
             className={classNames(
-              'h-full bg-secondary-light dark:bg-secondary-dark',
+              'h-full bg-secondary-light dark:bg-secondary-dark flex flex-col',
               // Show chat view when mobile view is active or when a chat is selected on desktop
               isMobileViewActive ? 'block' : 
               selectedChat ? 'hidden md:block' : 'hidden md:block'
@@ -129,7 +140,7 @@ export default function Chat() {
             <ChatView
               user={user}
               chat={selectedChat}
-              onSendMessage={sendMessage}
+              onSendMessage={handleSendMessage}
               onDeleteChat={deleteChat}
               onClearChat={clearChat}
               onBack={handleBackToList}
