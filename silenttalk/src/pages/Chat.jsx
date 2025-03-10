@@ -65,13 +65,23 @@ export default function Chat() {
     }
 
     try {
+      // If we're already on this chat, do nothing
+      if (currentChat === chatId) {
+        console.log('Already on this chat, no need to change');
+        return;
+      }
+      
+      // Set the new chat directly
       await setCurrentChat(chatId);
       
-      // Only activate mobile view on small screens
-      if (isMobileDevice) {
-        console.log('Activating mobile view for selected chat (small screen)');
-        setIsMobileViewActive(true);
-      }
+      // Force a small delay to ensure Firebase data is loaded
+      setTimeout(() => {
+        // Only activate mobile view on small screens
+        if (isMobileDevice) {
+          console.log('Activating mobile view for selected chat (small screen)');
+          setIsMobileViewActive(true);
+        }
+      }, 50);
     } catch (error) {
       console.error('Error selecting chat:', error);
     }
@@ -80,7 +90,10 @@ export default function Chat() {
   const handleBackToList = () => {
     console.log('Handling back to list');
     setIsMobileViewActive(false);
-    setCurrentChat(null);
+    // Use a small timeout to ensure UI updates before changing chat
+    setTimeout(() => {
+      setCurrentChat(null);
+    }, 50);
   };
 
   return (

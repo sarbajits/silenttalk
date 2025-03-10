@@ -9,10 +9,12 @@ import { toast } from 'react-hot-toast';
 export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onClearChat, onBack }) {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const chatId = chat?.id;
+  const messagesLoadedRef = useRef(false);
 
   // Log when chat prop changes
   useEffect(() => {
@@ -22,11 +24,16 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
     if (chat) {
       setMessages([]);
       setLoading(true);
+      setMessage(''); // Clear input field when changing chats
+      setSendingMessage(false); // Reset sending state
+      messagesLoadedRef.current = false; // Reset the messages loaded flag
     }
   }, [chat]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   // Auto-scroll on message updates
@@ -46,6 +53,8 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
 
     console.log('Loading messages for chat:', chatId);
     setLoading(true);
+    
+    messagesLoadedRef.current = false;
     const messagesRef = ref(database, `chats/${chatId}/messages`);
 
     // Load existing messages
@@ -55,17 +64,20 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
         const messagesList = Object.entries(messagesData)
           .map(([id, data]) => ({ id, ...data }))
           .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-        console.log('Loaded messages:', messagesList);
+        console.log('Loaded messages:', messagesList.length);
         setMessages(messagesList);
       } else {
         console.log('No messages found');
         setMessages([]);
       }
+      
+      messagesLoadedRef.current = true;
       setLoading(false);
       setTimeout(scrollToBottom, 100); // Delay to ensure DOM is updated
     }).catch((error) => {
       console.error('Error loading messages:', error);
       setLoading(false);
+      setMessages([]); // Reset messages on error to avoid stale state
     });
 
     // Listen for new messages
@@ -73,12 +85,32 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
       const messageData = snapshot.val();
       if (messageData) {
         console.log('New message received:', messageData);
+        
         // Use functional update to avoid closure issues
         setMessages(prev => {
-          // Check if message already exists
-          if (prev.some(m => m.id === snapshot.key)) {
+          // Check if message already exists (by id or by matching content for temp messages)
+          const messageExists = prev.some(m => 
+            m.id === snapshot.key || 
+            (m.id.startsWith('temp-') && m.text === messageData.text && m.userId === messageData.userId)
+          );
+          
+          if (messageExists) {
+            // If it's a temp message, replace it with the real one
+            if (prev.some(m => m.id.startsWith('temp-') && m.text === messageData.text && m.userId === messageData.userId)) {
+              const updatedMessages = prev.map(m => 
+                (m.id.startsWith('temp-') && m.text === messageData.text && m.userId === messageData.userId)
+                  ? { id: snapshot.key, ...messageData }
+                  : m
+              );
+              
+              // Schedule scroll after state update
+              setTimeout(scrollToBottom, 100);
+              
+              return updatedMessages;
+            }
             return prev;
           }
+          
           const newMessage = { id: snapshot.key, ...messageData };
           const updatedMessages = [...prev, newMessage].sort((a, b) => 
             (a.timestamp || 0) - (b.timestamp || 0)
@@ -92,11 +124,65 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
       }
     });
 
+    // Cleanup function
     return () => {
       console.log('Cleaning up message listeners for chat:', chatId);
       unsubscribe();
     };
   }, [chatId]);
+
+  // Handle message submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!message.trim() || !chatId || sendingMessage) return;
+
+    const sentMessage = message.trim();
+    
+    // Clear input field immediately
+    setMessage('');
+    
+    // Set sending state
+    setSendingMessage(true);
+    
+    // Add message to local state immediately for better UX
+    const tempId = `temp-${Date.now()}`;
+    const tempTimestamp = Date.now();
+    const tempMessage = {
+      id: tempId,
+      text: sentMessage,
+      timestamp: tempTimestamp,
+      userId: user.uid,
+      pending: true // Add pending flag
+    };
+    
+    // Add to local messages state
+    setMessages(prev => [...prev, tempMessage]);
+    
+    // Scroll to bottom immediately
+    setTimeout(scrollToBottom, 10);
+    
+    try {
+      // Send to server
+      await onSendMessage(chatId, sentMessage);
+      
+      // Update the temporary message to remove pending state
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === tempId 
+            ? { ...msg, pending: false }
+            : msg
+        )
+      );
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Failed to send message');
+      
+      // Remove the temporary message if sending failed
+      setMessages(prev => prev.filter(msg => msg.id !== tempId));
+    } finally {
+      setSendingMessage(false);
+    }
+  };
 
   // Adding a back button in the header for mobile view
   const renderHeader = () => {
@@ -150,20 +236,6 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
     );
   };
 
-  // Handle message submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!message.trim() || !chatId) return;
-
-    try {
-      await onSendMessage(chatId, message.trim());
-      setMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast.error('Failed to send message');
-    }
-  };
-
   // If no chat is selected, show a placeholder
   if (!chat) {
     return (
@@ -178,13 +250,20 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
     );
   }
 
+  // Debug output
+  console.log('ChatView render state:', { 
+    loading, 
+    messagesCount: messages.length, 
+    chatId
+  });
+
   return (
     <div className="flex h-full flex-col">
       {/* Chat Header */}
       {renderHeader()}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4" id="messages-container">
         {loading ? (
           <div className="flex h-full items-center justify-center">
             <div className="animate-spin h-8 w-8 border-4 border-primary rounded-full border-t-transparent"></div>
@@ -204,11 +283,18 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
                 <div
                   className={`max-w-[75%] rounded-lg p-3 ${
                     msg.userId === user.uid
-                      ? 'bg-primary text-white'
+                      ? `bg-primary text-white ${msg.pending ? 'opacity-70' : ''}`
                       : 'bg-secondary-light dark:bg-secondary-dark text-text-light dark:text-text-dark'
                   }`}
                 >
-                  <div>{msg.text}</div>
+                  <div className="relative">
+                    {msg.text}
+                    {msg.pending && (
+                      <span className="absolute -right-6 top-1/2 -translate-y-1/2">
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      </span>
+                    )}
+                  </div>
                   <div className="mt-1 text-right text-xs opacity-70">
                     {formatTime(msg.timestamp)}
                   </div>
@@ -229,13 +315,14 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type a message..."
             className="flex-1 rounded-l-lg border border-border-light bg-white p-2 focus:outline-none dark:border-border-dark dark:bg-primary-dark dark:text-text-dark"
+            disabled={sendingMessage}
           />
           <button
             type="submit"
-            disabled={!message.trim()}
+            disabled={!message.trim() || sendingMessage}
             className="rounded-r-lg bg-primary px-4 text-white disabled:opacity-50"
           >
-            Send
+            {sendingMessage ? 'Sending...' : 'Send'}
           </button>
         </form>
       </div>

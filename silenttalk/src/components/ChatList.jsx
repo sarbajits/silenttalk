@@ -64,6 +64,10 @@ export default function ChatList({ user, chats, currentChat, onChatSelect, loadi
 
   const handleUserSelect = async (selectedUser) => {
     try {
+      // Clear search results and term immediately for better UX
+      setSearchTerm('');
+      setSearchResults([]);
+      
       const chatId = await startChat({
         uid: selectedUser.uid,
         username: selectedUser.username,
@@ -71,9 +75,11 @@ export default function ChatList({ user, chats, currentChat, onChatSelect, loadi
         status: selectedUser.status || 'offline',
         lastSeen: selectedUser.lastSeen
       });
-      onChatSelect(chatId);
-      setSearchTerm('');
-      setSearchResults([]);
+      
+      // Small delay to ensure chat is created before selecting
+      setTimeout(() => {
+        onChatSelect(chatId);
+      }, 100);
     } catch (error) {
       console.error('Error starting chat:', error);
     }
@@ -107,6 +113,12 @@ export default function ChatList({ user, chats, currentChat, onChatSelect, loadi
 
     return sortedChats.map(([chatId, chat]) => {
       const unreadCount = unreadCounts[chatId] || 0;
+      
+      // Format the last message time
+      let timeDisplay = '';
+      if (chat.lastMessageTime) {
+        timeDisplay = formatTime(chat.lastMessageTime);
+      }
 
       return (
         <div
@@ -116,7 +128,9 @@ export default function ChatList({ user, chats, currentChat, onChatSelect, loadi
             'flex cursor-pointer items-center border-b border-border-light p-4 transition-colors dark:border-border-dark',
             chatId === currentChat
               ? 'bg-gray-100 dark:bg-gray-800'
-              : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+              : unreadCount > 0 
+                ? 'bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30' 
+                : 'hover:bg-gray-50 dark:hover:bg-gray-800'
           )}
         >
           <div className="relative h-12 w-12 flex-shrink-0">
@@ -136,7 +150,12 @@ export default function ChatList({ user, chats, currentChat, onChatSelect, loadi
           
           <div className="ml-3 flex-1 overflow-hidden">
             <div className="flex items-center justify-between">
-              <span className="font-medium">{chat.otherUser.username}</span>
+              <span className={classNames(
+                "font-medium",
+                unreadCount > 0 ? "font-semibold text-primary dark:text-primary-light" : ""
+              )}>
+                {chat.otherUser.username}
+              </span>
               <div className="flex items-center">
                 {/* Unread count badge */}
                 {unreadCount > 0 && (
@@ -145,9 +164,9 @@ export default function ChatList({ user, chats, currentChat, onChatSelect, loadi
                   </span>
                 )}
                 {/* Time */}
-                {chat.lastMessageTime && (
+                {timeDisplay && (
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatTime(chat.lastMessageTime)}
+                    {timeDisplay}
                   </span>
                 )}
               </div>
@@ -155,7 +174,12 @@ export default function ChatList({ user, chats, currentChat, onChatSelect, loadi
             
             <div className="flex items-center justify-between">
               {/* Last message with truncation */}
-              <p className="mt-1 truncate text-sm text-gray-500 dark:text-gray-400">
+              <p className={classNames(
+                "mt-1 truncate text-sm",
+                unreadCount > 0 
+                  ? "text-gray-800 dark:text-gray-200" 
+                  : "text-gray-500 dark:text-gray-400"
+              )}>
                 {chat.lastMessage || 'No messages yet'}
               </p>
             </div>
