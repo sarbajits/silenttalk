@@ -9,7 +9,7 @@ export default function Chat() {
   const [isMobileViewActive, setIsMobileViewActive] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const { user } = useAuth();
-  const { chats, currentChat, setCurrentChat, loading, sendMessage, deleteChat, clearChat } = useChat();
+  const { chats, currentChat, setCurrentChat, sendMessage, deleteChat, clearChat } = useChat();
 
   // Get the selected chat object
   const selectedChat = currentChat ? chats[currentChat] : null;
@@ -124,7 +124,6 @@ export default function Chat() {
               chats={chats}
               currentChat={currentChat}
               onChatSelect={handleChatSelect}
-              loading={loading}
             />
           </div>
 

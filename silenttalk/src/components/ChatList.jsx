@@ -4,8 +4,9 @@ import { database } from '../lib/firebase';
 import { formatTime, getAvatarUrl, classNames } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../hooks/useChat';
+import { toast } from 'react-hot-toast';
 
-export default function ChatList({ user, chats, currentChat, onChatSelect, loading }) {
+export default function ChatList({ user, chats, currentChat, onChatSelect }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -64,10 +65,13 @@ export default function ChatList({ user, chats, currentChat, onChatSelect, loadi
 
   const handleUserSelect = async (selectedUser) => {
     try {
+      console.log('Starting new chat with user:', selectedUser);
+      
       // Clear search results and term immediately for better UX
       setSearchTerm('');
       setSearchResults([]);
       
+      // Start new chat and get chatId
       const chatId = await startChat({
         uid: selectedUser.uid,
         username: selectedUser.username,
@@ -76,12 +80,16 @@ export default function ChatList({ user, chats, currentChat, onChatSelect, loadi
         lastSeen: selectedUser.lastSeen
       });
       
+      console.log('New chat created with ID:', chatId);
+      
       // Small delay to ensure chat is created before selecting
       setTimeout(() => {
+        console.log('Selecting new chat:', chatId);
         onChatSelect(chatId);
       }, 100);
     } catch (error) {
       console.error('Error starting chat:', error);
+      toast.error('Failed to start chat');
     }
   };
 
@@ -94,14 +102,6 @@ export default function ChatList({ user, chats, currentChat, onChatSelect, loadi
 
   // Render the chat list section
   const renderChatList = () => {
-    if (loading) {
-      return (
-        <div className="flex h-32 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-        </div>
-      );
-    }
-
     if (sortedChats.length === 0) {
       return (
         <div className="flex h-32 flex-col items-center justify-center p-4 text-center text-text-light/50 dark:text-text-dark/50">

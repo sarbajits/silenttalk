@@ -42,7 +42,10 @@ export function useChat() {
     cleanupChatListeners();
 
     // No chats to listen to
-    if (!chatIds.length) return;
+    if (!chatIds.length) {
+      setLoading(false);
+      return;
+    }
 
     console.log(`Setting up listeners for ${chatIds.length} chats`);
 
@@ -95,6 +98,11 @@ export function useChat() {
               unreadCount
             };
 
+            // If this is the current chat, ensure it's selected
+            if (chatId === currentChat) {
+              setCurrentChat(chatId);
+            }
+
             console.log(`Updating chat ${chatId} in real-time:`, updatedChat);
             return {
               ...prevChats,
@@ -103,6 +111,7 @@ export function useChat() {
           });
         } catch (error) {
           console.error(`Error in chat listener for ${chatId}:`, error);
+          setLoading(false);
         }
       });
 
@@ -144,6 +153,11 @@ export function useChat() {
                 // Also update the unread count in the chat object
                 updatedChat.unreadCount = (existingChat.unreadCount || 0) + 1;
               }
+
+              // If this is the current chat, ensure it's selected
+              if (chatId === currentChat) {
+                setCurrentChat(chatId);
+              }
               
               return {
                 ...prevChats,
@@ -155,6 +169,7 @@ export function useChat() {
           });
         } catch (error) {
           console.error(`Error in messages listener for ${chatId}:`, error);
+          setLoading(false);
         }
       });
       
@@ -166,6 +181,9 @@ export function useChat() {
         activeListenersRef.current[chatId].push(messagesUnsubscribe);
       }
     });
+
+    // Set loading to false after setting up all listeners
+    setLoading(false);
   };
   
   // Helper function to fetch user data and add a new chat to state
@@ -586,11 +604,9 @@ export function useChat() {
         [chatId]: newChat
       }));
       
-      // Set current chat after a short delay to ensure state is updated
-      setTimeout(() => {
-        console.log('Setting current chat to:', chatId);
-        setCurrentChat(chatId);
-      }, 50);
+      // Set current chat immediately
+      console.log('Setting current chat to:', chatId);
+      setCurrentChat(chatId);
       
       return chatId;
     } catch (error) {
@@ -604,15 +620,19 @@ export function useChat() {
   const selectChat = async (chatId) => {
     try {
       if (!chatId) {
+        console.log('No chatId provided, clearing current chat');
         setCurrentChat(null);
         return;
       }
+
+      console.log('Selecting chat:', chatId);
 
       // Get chat data
       const chatRef = ref(database, `chats/${chatId}`);
       const chatSnapshot = await get(chatRef);
       
       if (!chatSnapshot.exists()) {
+        console.error('Chat not found:', chatId);
         throw new Error('Chat not found');
       }
       
@@ -633,6 +653,7 @@ export function useChat() {
       }
       
       // Set current chat immediately
+      console.log('Setting current chat to:', chatId);
       setCurrentChat(chatId);
     } catch (error) {
       console.error('Error selecting chat:', error);
@@ -694,15 +715,23 @@ export function useChat() {
           .map(([id, msg]) => ({ id, ...msg }))
           .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
         
+        // Update the chat with new message and ensure it's in the correct order
+        const updatedChat = {
+          ...existingChat,
+          lastMessage: text.trim(),
+          lastMessageTime: clientTimestamp,
+          messages: updatedMessages,
+          sortedMessages // Add sorted messages array for instant updates
+        };
+
+        // If this is the current chat, ensure it's selected
+        if (chatId === currentChat) {
+          setCurrentChat(chatId);
+        }
+        
         return {
           ...prevChats,
-          [chatId]: {
-            ...existingChat,
-            lastMessage: text.trim(),
-            lastMessageTime: clientTimestamp,
-            messages: updatedMessages,
-            sortedMessages // Add sorted messages array for instant updates
-          }
+          [chatId]: updatedChat
         };
       });
       
