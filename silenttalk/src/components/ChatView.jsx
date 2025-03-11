@@ -332,8 +332,8 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
                 <div
                   className={`max-w-[75%] md:max-w-[70%] lg:max-w-[60%] rounded-lg p-3 ${
                     msg.userId === user.uid
-                      ? `bg-primary text-white ${msg.pending ? 'opacity-70' : ''}`
-                      : 'bg-secondary-light dark:bg-secondary-dark text-text-light dark:text-text-dark'
+                      ? `bg-message-sent-light dark:bg-message-sent-dark text-gray-800 dark:text-white ${msg.pending ? 'opacity-70' : ''}`
+                      : 'bg-message-received-light dark:bg-message-received-dark text-gray-800 dark:text-white'
                   }`}
                 >
                   <div className="relative break-words">
@@ -356,22 +356,29 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
       </div>
 
       {/* Message Input */}
-      <div className="border-t border-border-light dark:border-border-dark p-4">
-        <form onSubmit={handleSubmit} className="flex">
+      <div className="sticky bottom-0 border-t border-border-light dark:border-border-dark bg-white dark:bg-primary-dark p-4">
+        <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 rounded-l-lg border border-border-light bg-white p-2 focus:outline-none dark:border-border-dark dark:bg-primary-dark dark:text-text-dark"
+            className="flex-1 rounded-lg border border-border-light bg-white p-2 focus:outline-none dark:border-border-dark dark:bg-primary-dark dark:text-text-dark"
             disabled={sendingMessage}
           />
           <button
             type="submit"
             disabled={!message.trim() || sendingMessage}
-            className="rounded-r-lg bg-primary px-4 text-white disabled:opacity-50"
+            className="flex items-center justify-center rounded-lg bg-accent p-2 text-white transition-all hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed w-10 h-10"
+            title="Send message"
           >
-            {sendingMessage ? 'Sending...' : 'Send'}
+            {sendingMessage ? (
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                <path d="M3.478 2.404a.75.75 0 00-.926.941l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.404z" />
+              </svg>
+            )}
           </button>
         </form>
       </div>

@@ -15,32 +15,32 @@ export default {
       colors: {
         primary: {
           light: '#ffffff',
-          dark: '#212121',
+          dark: '#1a1b1e',
         },
         secondary: {
-          light: '#f4f4f5',
-          dark: '#181818',
+          light: '#f8f9fa',
+          dark: '#141517',
         },
-        accent: '#2481cc',
+        accent: '#6366f1',
         hover: {
-          light: '#f3f4f6',
-          dark: '#2d2d2d',
+          light: '#f1f3f5',
+          dark: '#2c2e33',
         },
         border: {
-          light: '#e5e7eb',
-          dark: '#404040',
+          light: '#e9ecef',
+          dark: '#373a40',
         },
         message: {
           sent: {
-            light: '#effdde',
-            dark: '#2b5278',
+            light: '#e0e7ff',
+            dark: '#4338ca',
           },
           received: {
             light: '#ffffff',
-            dark: '#182533',
+            dark: '#25262b',
           },
         },
-        online: '#42be65',
+        online: '#10b981',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',
