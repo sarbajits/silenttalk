@@ -311,12 +311,12 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
   });
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col relative">
       {/* Chat Header */}
       {renderHeader()}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent" id="messages-container" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+      <div className="flex-1 overflow-y-auto p-4 pb-16 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent" id="messages-container">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center text-text-light/50 dark:text-text-dark/50">
             <p className="mb-2 text-lg">No messages yet</p>
@@ -356,20 +356,20 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
       </div>
 
       {/* Message Input */}
-      <div className="border-t border-border-light dark:border-border-dark p-4">
-        <form onSubmit={handleSubmit} className="flex">
+      <div className="border-t border-border-light dark:border-border-dark p-4 sticky bottom-0 bg-white dark:bg-primary-dark w-full">
+        <form onSubmit={handleSubmit} className="flex max-w-full">
           <input
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 rounded-l-lg border border-border-light bg-white p-2 focus:outline-none dark:border-border-dark dark:bg-primary-dark dark:text-text-dark"
+            className="flex-1 rounded-l-lg border border-border-light bg-white p-2 focus:outline-none dark:border-border-dark dark:bg-primary-dark dark:text-text-dark min-w-0"
             disabled={sendingMessage}
           />
           <button
             type="submit"
             disabled={!message.trim() || sendingMessage}
-            className="rounded-r-lg bg-primary px-4 text-white disabled:opacity-50"
+            className="rounded-r-lg bg-primary px-4 text-white disabled:opacity-50 whitespace-nowrap"
           >
             {sendingMessage ? 'Sending...' : 'Send'}
           </button>

@@ -108,8 +108,8 @@ export default function Chat() {
   };
 
   return (
-    <div className="h-screen bg-primary-light dark:bg-primary-dark overflow-hidden">
-      <div className="mx-auto h-full max-w-7xl">
+    <div className="h-screen bg-primary-light dark:bg-primary-dark overflow-hidden flex flex-col">
+      <div className="mx-auto h-full w-full max-w-7xl flex-1 flex flex-col">
         <div className="grid h-full md:grid-cols-[350px_1fr]">
           {/* Chat List - Always visible on desktop, conditionally on mobile */}
           <div
