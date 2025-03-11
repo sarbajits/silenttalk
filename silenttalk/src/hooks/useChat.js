@@ -128,16 +128,7 @@ export function useChat() {
           // Get the current chat data
           setChats(prevChats => {
             const existingChat = prevChats[chatId];
-            if (!existingChat) {
-              // If the chat doesn't exist in state yet, fetch it
-              const chatRef = ref(database, `chats/${chatId}`);
-              get(chatRef).then(chatSnapshot => {
-                if (chatSnapshot.exists()) {
-                  fetchAndAddNewChat(chatId, chatSnapshot.val());
-                }
-              });
-              return prevChats;
-            }
+            if (!existingChat) return prevChats;
             
             // Only update if this is a new message (based on timestamp)
             const messageTime = messageData.timestamp;
@@ -248,16 +239,6 @@ export function useChat() {
         ...prevChats,
         [chatId]: newChat
       }));
-      
-      // IMPORTANT: Make sure this chat is added to the user's chats reference
-      // This ensures the chat appears in the chat list even if the user hasn't replied
-      const userChatRef = ref(database, `users/${user.uid}/chats/${chatId}`);
-      const userChatSnapshot = await get(userChatRef);
-      
-      if (!userChatSnapshot.exists()) {
-        console.log(`Adding chat ${chatId} to user's chat references`);
-        await set(userChatRef, true);
-      }
       
     } catch (error) {
       console.error(`Error fetching data for new chat ${chatId}:`, error);
@@ -382,76 +363,140 @@ export function useChat() {
     ensureChatData();
   }, [currentChat, user, chats]);
 
-  // Main effect to load chats when user changes
+  // Load chats
   useEffect(() => {
     if (!user) {
       setChats({});
       setCurrentChat(null);
+      setUnreadCounts({});
       setLoading(false);
+      // Clean up any active listeners
+      cleanupChatListeners();
       return;
     }
 
-    console.log('Setting up main chat listener for user:', user.uid);
+    console.log('Loading chats for user:', user.uid);
     setLoading(true);
-
-    // Listen for changes to the user's chats
     const userChatsRef = ref(database, `users/${user.uid}/chats`);
+
     const unsubscribe = onValue(userChatsRef, async (snapshot) => {
       try {
-        if (!snapshot.exists()) {
-          console.log('No chats found for user');
+        const userChats = snapshot.val() || {};
+        console.log('User chats from Firebase:', userChats);
+        
+        if (Object.keys(userChats).length === 0) {
+          console.log('No chats found for user, setting empty chats');
           setChats({});
           setLoading(false);
+          cleanupChatListeners(); // Clean up any active listeners
           return;
         }
+        
+        // Keep track of chats we've processed
+        const processedChatIds = new Set();
+        
+        const chatPromises = Object.keys(userChats).map(async (chatId) => {
+          try {
+            processedChatIds.add(chatId);
+            
+            const chatRef = ref(database, `chats/${chatId}`);
+            const chatSnapshot = await get(chatRef);
+            
+            if (!chatSnapshot.exists()) {
+              console.log(`Chat ${chatId} does not exist`);
+              return null;
+            }
 
-        const userChats = snapshot.val();
-        const chatIds = Object.keys(userChats);
-        console.log(`Found ${chatIds.length} chats for user`);
+            const chatData = chatSnapshot.val();
+            
+            // Verify chat data structure
+            if (!chatData.participants || !chatData.participants[user.uid]) {
+              console.log(`Invalid chat data structure for ${chatId}`);
+              return null;
+            }
 
-        // Set up listeners for each chat
-        setupChatListeners(chatIds);
+            // Get other user's ID
+            const otherUserId = Object.keys(chatData.participants)
+              .find(uid => uid !== user.uid);
 
-        // For each chat ID, check if we need to fetch the chat data
-        const chatPromises = chatIds.map(async (chatId) => {
-          // Check if we already have this chat in state
-          if (chats[chatId]) {
-            return null; // Skip if already loaded
-          }
+            if (!otherUserId) {
+              console.log(`No other participant found in chat ${chatId}`);
+              return null;
+            }
 
-          // Fetch the chat data
-          const chatRef = ref(database, `chats/${chatId}`);
-          const chatSnapshot = await get(chatRef);
+            // Get other user's data
+            const otherUserRef = ref(database, `users/${otherUserId}`);
+            const otherUserSnapshot = await get(otherUserRef);
+            
+            if (!otherUserSnapshot.exists()) {
+              console.log(`Other user ${otherUserId} not found`);
+              return null;
+            }
 
-          if (!chatSnapshot.exists()) {
-            console.log(`Chat ${chatId} not found in database`);
-            // Remove from user's chats if it doesn't exist
-            await remove(ref(database, `users/${user.uid}/chats/${chatId}`));
+            const otherUserData = otherUserSnapshot.val();
+
+            // Check if there are unread messages for this user
+            const unreadCount = chatData.unreadBy && chatData.unreadBy[user.uid] ? chatData.unreadBy[user.uid] : 0;
+            
+            // Update unread counts
+            setUnreadCounts(prev => ({
+              ...prev,
+              [chatId]: unreadCount
+            }));
+
+            // Construct chat object
+            return {
+              id: chatId,
+              ...chatData,
+              otherUser: {
+                uid: otherUserId,
+                username: otherUserData.username || 'Unknown User',
+                photoURL: otherUserData.photoURL || null,
+                status: otherUserData.status || 'offline',
+                lastSeen: otherUserData.lastSeen || null
+              },
+              unreadCount
+            };
+          } catch (error) {
+            console.error(`Error loading chat ${chatId}:`, error);
             return null;
           }
-
-          // Get the chat data
-          const chatData = chatSnapshot.val();
-          return { chatId, chatData };
         });
 
-        // Wait for all promises to resolve
-        const results = await Promise.all(chatPromises);
+        const validChats = (await Promise.all(chatPromises))
+          .filter(Boolean);
 
-        // Process the results
-        const validResults = results.filter(Boolean);
-        if (validResults.length > 0) {
-          console.log(`Fetched ${validResults.length} new chats`);
+        console.log('Valid chats:', validChats);
+        
+        // Create a new chats object
+        const newChats = {};
+        
+        // First add all valid chats we just loaded
+        validChats.forEach(chat => {
+          newChats[chat.id] = chat;
+        });
+        
+        // Then update state, preserving any chats that weren't in the user's chat list
+        // but might be needed (like the current chat)
+        setChats(prevChats => {
+          const updatedChats = { ...newChats };
           
-          // Process each chat
-          for (const { chatId, chatData } of validResults) {
-            await fetchAndAddNewChat(chatId, chatData);
+          // Keep current chat in state if it exists but wasn't in the loaded chats
+          if (currentChat && prevChats[currentChat] && !updatedChats[currentChat]) {
+            updatedChats[currentChat] = prevChats[currentChat];
+            processedChatIds.add(currentChat);
           }
-        }
-
+          
+          return updatedChats;
+        });
+        
+        // Set up real-time listeners for each chat
+        setupChatListeners([...processedChatIds]);
+        
         setLoading(false);
       } catch (error) {
-        console.error('Error in main chat listener:', error);
+        console.error('Error loading chats:', error);
+        toast.error('Failed to load chats');
         setLoading(false);
       }
     });
@@ -529,15 +574,6 @@ export function useChat() {
       } else {
         console.log('Chat already exists:', chatId);
         chatData = chatSnapshot.val();
-        
-        // Ensure the chat is in the current user's chat list
-        const userChatRef = ref(database, `users/${user.uid}/chats/${chatId}`);
-        const userChatSnapshot = await get(userChatRef);
-        
-        if (!userChatSnapshot.exists()) {
-          console.log('Adding existing chat to user chat list');
-          await set(userChatRef, true);
-        }
       }
 
       // Construct the chat object with all necessary data
