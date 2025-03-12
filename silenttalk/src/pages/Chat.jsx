@@ -108,13 +108,13 @@ export default function Chat() {
   };
 
   return (
-    <div className="h-screen bg-primary-light dark:bg-primary-dark overflow-hidden flex flex-col">
-      <div className="mx-auto h-full w-full max-w-7xl flex-1 flex flex-col">
-        <div className="grid h-full md:grid-cols-[350px_1fr]">
+    <div className="h-screen overflow-hidden bg-primary-light dark:bg-primary-dark">
+      <div className="h-full">
+        <div className="grid h-full md:grid-cols-[320px_1fr]">
           {/* Chat List - Always visible on desktop, conditionally on mobile */}
           <div
             className={classNames(
-              'h-full border-r border-border-light dark:border-border-dark bg-primary-light dark:bg-primary-dark',
+              'h-full border-r border-border-light dark:border-border-dark bg-primary-light dark:bg-primary-dark w-full md:w-auto overflow-hidden',
               // Only hide on mobile when a chat is selected
               isMobileViewActive && isMobileDevice ? 'hidden md:block' : 'block'
             )}
@@ -130,7 +130,7 @@ export default function Chat() {
           {/* Chat View - Always visible on desktop when chat selected, conditionally on mobile */}
           <div
             className={classNames(
-              'h-full bg-secondary-light dark:bg-secondary-dark flex flex-col',
+              'h-full bg-secondary-light dark:bg-secondary-dark flex flex-col w-full overflow-hidden',
               // Show chat view when mobile view is active or when a chat is selected on desktop
               isMobileViewActive ? 'block' : 
               selectedChat ? 'hidden md:block' : 'hidden md:block'

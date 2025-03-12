@@ -13,8 +13,31 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
   const [sendingMessage, setSendingMessage] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
   const chatId = chat?.id;
   const messagesLoadedRef = useRef(false);
+
+  // Keep input focused at all times
+  useEffect(() => {
+    const focusInput = () => {
+      if (inputRef.current && chat) {
+        inputRef.current.focus();
+      }
+    };
+
+    // Focus initially
+    focusInput();
+
+    // Set up event listeners for mobile
+    window.addEventListener('touchend', focusInput);
+    window.addEventListener('click', focusInput);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('touchend', focusInput);
+      window.removeEventListener('click', focusInput);
+    };
+  }, [chat]);
 
   // Log when chat prop changes
   useEffect(() => {
@@ -207,6 +230,11 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
         
         return updatedMessages;
       });
+
+      // Focus the input field after sending
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message');
@@ -222,6 +250,10 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
       });
     } finally {
       setSendingMessage(false);
+      // Focus the input field again after everything is done
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
     }
   };
 
@@ -237,7 +269,7 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
   // Adding a back button in the header for mobile view
   const renderHeader = () => {
     return (
-      <div className="border-b border-border-light dark:border-border-dark p-4 flex items-center justify-between">
+      <div className="border-b border-border-light dark:border-border-dark p-3 md:p-4 flex items-center justify-between">
         <div className="flex items-center">
           {/* Mobile back button */}
           <button 
@@ -251,7 +283,7 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
           
           {chat && (
             <div className="flex items-center">
-              <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden mr-3">
                 <img 
                   src={getAvatarUrl(chat.otherUser.photoURL)} 
                   alt={chat.otherUser.username} 
@@ -259,7 +291,7 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
                 />
               </div>
               <div>
-                <div className="font-semibold text-text-light dark:text-text-dark">
+                <div className="font-semibold text-sm md:text-base text-text-light dark:text-text-dark">
                   {chat.otherUser.username}
                 </div>
                 <div className="text-xs text-text-light/70 dark:text-text-dark/70">
@@ -311,67 +343,86 @@ export default function ChatView({ user, chat, onSendMessage, onDeleteChat, onCl
   });
 
   return (
-    <div className="flex h-full flex-col relative">
-      {/* Chat Header */}
+    <div className="flex flex-col h-full">
+      {/* Chat Header - Fixed at top */}
       {renderHeader()}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 pb-16 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent" id="messages-container">
-        {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center text-text-light/50 dark:text-text-dark/50">
-            <p className="mb-2 text-lg">No messages yet</p>
-            <p className="text-sm">Start the conversation by sending a message</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${msg.userId === user.uid ? 'justify-end' : 'justify-start'}`}
-              >
+      {/* Messages Container - Scrollable */}
+      <div className="flex-1 min-h-0"> {/* min-h-0 is crucial for proper flex behavior */}
+        <div 
+          className="h-full overflow-y-auto p-3 md:p-4 space-y-3 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent"
+        >
+          {messages.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-center text-text-light/50 dark:text-text-dark/50">
+              <p className="mb-2 text-lg">No messages yet</p>
+              <p className="text-sm">Start the conversation by sending a message</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {messages.map((msg) => (
                 <div
-                  className={`max-w-[75%] md:max-w-[70%] lg:max-w-[60%] rounded-lg p-3 ${
-                    msg.userId === user.uid
-                      ? `bg-primary text-white ${msg.pending ? 'opacity-70' : ''}`
-                      : 'bg-secondary-light dark:bg-secondary-dark text-text-light dark:text-text-dark'
-                  }`}
+                  key={msg.id}
+                  className={`flex ${msg.userId === user.uid ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className="relative break-words">
-                    {msg.text}
-                    {msg.pending && (
-                      <span className="absolute -right-6 top-1/2 -translate-y-1/2">
-                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 text-right text-xs opacity-70">
-                    {formatTime(msg.timestamp)}
+                  <div
+                    className={`max-w-[85%] md:max-w-[70%] lg:max-w-[60%] rounded-lg p-3 ${
+                      msg.userId === user.uid
+                        ? `bg-blue-500 text-white rounded-[16px_16px_4px_16px] ${msg.pending ? 'opacity-70' : ''}`
+                        : 'bg-gray-100 dark:bg-gray-800 text-text-light dark:text-text-dark rounded-[16px_16px_16px_4px]'
+                    }`}
+                  >
+                    <div className="relative break-words">
+                      {msg.text}
+                      {msg.pending && (
+                        <span className="absolute -right-6 top-1/2 -translate-y-1/2">
+                          <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 text-right text-xs opacity-70">
+                      {formatTime(msg.timestamp)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Message Input */}
-      <div className="border-t border-border-light dark:border-border-dark p-4 sticky bottom-0 bg-white dark:bg-primary-dark w-full">
-        <form onSubmit={handleSubmit} className="flex max-w-full">
+      {/* Message Input - Fixed at bottom */}
+      <div className="border-t border-border-light dark:border-border-dark p-4 bg-secondary-light dark:bg-secondary-dark">
+        <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type a message..."
-            className="flex-1 rounded-l-lg border border-border-light bg-white p-2 focus:outline-none dark:border-border-dark dark:bg-primary-dark dark:text-text-dark min-w-0"
+            className="flex-1 rounded-full border border-border-light bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-border-dark dark:bg-primary-dark dark:text-text-dark"
             disabled={sendingMessage}
+            autoFocus
+            onBlur={(e) => {
+              // Prevent focus loss
+              if (chat) {
+                e.preventDefault();
+                setTimeout(() => e.target.focus(), 0);
+              }
+            }}
           />
           <button
             type="submit"
             disabled={!message.trim() || sendingMessage}
-            className="rounded-r-lg bg-primary px-4 text-white disabled:opacity-50 whitespace-nowrap"
+            className="rounded-full bg-blue-500 p-2 text-white disabled:opacity-50 hover:bg-blue-600 transition-colors"
           >
-            {sendingMessage ? 'Sending...' : 'Send'}
+            {sendingMessage ? (
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              </svg>
+            )}
           </button>
         </form>
       </div>
